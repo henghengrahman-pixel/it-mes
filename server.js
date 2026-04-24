@@ -14,7 +14,6 @@ const io = require("socket.io")(server);
 // ======================
 const BASE_DIR = __dirname;
 
-// cek apakah ada folder api-server
 const APP_DIR = fs.existsSync(path.join(BASE_DIR, "api-server"))
   ? path.join(BASE_DIR, "api-server")
   : BASE_DIR;
@@ -31,15 +30,13 @@ fs.ensureDirSync(DATA_DIR);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// STATIC (AUTO FIX)
 app.use(express.static(path.join(APP_DIR, "public")));
 
-// VIEWS (AUTO FIX)
 app.set("views", path.join(APP_DIR, "views"));
 app.set("view engine", "ejs");
 
 // ======================
-// SESSION (RAILWAY SAFE)
+// SESSION
 // ======================
 app.set("trust proxy", 1);
 
@@ -89,6 +86,7 @@ function requireLogin(req, res, next) {
 // ======================
 // ROUTES
 // ======================
+
 app.get("/login", (req, res) => {
   res.render("login", { error: null });
 });
@@ -107,11 +105,38 @@ app.post("/login", (req, res) => {
   res.render("login", { error: "ID atau Password salah" });
 });
 
+// ======================
+// DASHBOARD (MULTI MESS)
+// ======================
 app.get("/", requireLogin, (req, res) => {
   const users = read(DB.users);
   const izin = read(DB.izin);
 
-  res.render("dashboard", { users, izin });
+  const selectedMess = req.query.mess || "ALL";
+
+  // ambil list mess unik
+  const messList = [...new Set(izin.map(i => i.mess).filter(Boolean))];
+
+  // filter data
+  const filtered = selectedMess === "ALL"
+    ? izin
+    : izin.filter(i => i.mess === selectedMess);
+
+  // grouping
+  const grouped = {};
+  izin.forEach(i => {
+    const key = i.mess || "UNKNOWN";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(i);
+  });
+
+  res.render("dashboard", {
+    users,
+    izin: filtered,
+    grouped,
+    messList,
+    selectedMess
+  });
 });
 
 // ======================
