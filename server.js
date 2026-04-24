@@ -10,15 +10,13 @@ const server = http.createServer(app);
 const io = require("socket.io")(server);
 
 // ======================
-// CONFIG PATH (PENTING)
+// PATH CONFIG
 // ======================
 const BASE_DIR = __dirname;
 const DATA_DIR = process.env.DATA_DIR || path.join(BASE_DIR, "data");
 
 // pastikan folder data ada
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+fs.ensureDirSync(DATA_DIR);
 
 // ======================
 // MIDDLEWARE
@@ -26,20 +24,25 @@ if (!fs.existsSync(DATA_DIR)) {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// static fix
 app.use(express.static(path.join(BASE_DIR, "public")));
 
-// views fix (INI YANG BIKIN ERROR KAMU SEBELUMNYA)
+// FIX VIEW PATH (WAJIB)
 app.set("views", path.join(BASE_DIR, "views"));
 app.set("view engine", "ejs");
 
-// session
+// ======================
+// SESSION (RAILWAY SAFE)
+// ======================
+app.set("trust proxy", 1); // penting di Railway
+
 app.use(session({
   secret: process.env.SESSION_SECRET || "secret",
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
   cookie: {
-    secure: false // Railway pakai proxy, aman false
+    secure: false, // Railway pakai proxy
+    httpOnly: true,
+    sameSite: "lax"
   }
 }));
 
@@ -52,11 +55,19 @@ const DB = {
 };
 
 function read(file) {
-  return fs.existsSync(file) ? fs.readJsonSync(file) : [];
+  try {
+    return fs.existsSync(file) ? fs.readJsonSync(file) : [];
+  } catch {
+    return [];
+  }
 }
 
 function write(file, data) {
-  fs.writeJsonSync(file, data, { spaces: 2 });
+  try {
+    fs.writeJsonSync(file, data, { spaces: 2 });
+  } catch (e) {
+    console.error("WRITE ERROR:", e);
+  }
 }
 
 // ======================
@@ -70,10 +81,13 @@ function requireLogin(req, res, next) {
 // ======================
 // ROUTES
 // ======================
+
+// login page
 app.get("/login", (req, res) => {
-  res.render("login");
+  res.render("login", { error: null });
 });
 
+// login process
 app.post("/login", (req, res) => {
   const { id, password } = req.body;
 
@@ -85,9 +99,11 @@ app.post("/login", (req, res) => {
     return res.redirect("/");
   }
 
-  res.send("Login gagal");
+  // kirim error ke view (biar tidak blank)
+  res.render("login", { error: "ID atau Password salah" });
 });
 
+// dashboard
 app.get("/", requireLogin, (req, res) => {
   const users = read(DB.users);
   const izin = read(DB.izin);
@@ -98,6 +114,8 @@ app.get("/", requireLogin, (req, res) => {
 // ======================
 // API
 // ======================
+
+// izin keluar
 app.post("/api/izin", (req, res) => {
   if (req.headers["x-api-key"] !== process.env.API_KEY) {
     return res.sendStatus(403);
@@ -119,6 +137,7 @@ app.post("/api/izin", (req, res) => {
   res.json({ ok: true });
 });
 
+// kembali
 app.post("/api/kembali", (req, res) => {
   if (req.headers["x-api-key"] !== process.env.API_KEY) {
     return res.sendStatus(403);
@@ -152,6 +171,14 @@ app.post("/api/kembali", (req, res) => {
 // ======================
 io.on("connection", () => {
   console.log("Admin connected");
+});
+
+// ======================
+// ERROR HANDLER (ANTI CRASH)
+// ======================
+app.use((err, req, res, next) => {
+  console.error("ERROR:", err);
+  res.status(500).send("Internal Server Error");
 });
 
 // ======================
