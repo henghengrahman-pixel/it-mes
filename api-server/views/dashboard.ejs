@@ -1,0 +1,18 @@
+
+<h1>Dashboard</h1>
+<table border="1">
+<tr><th>Nama</th><th>Mess</th><th>Status</th></tr>
+<% izin.forEach(i=>{ %>
+<tr>
+<td><%=i.nama%></td>
+<td><%=i.mess%></td>
+<td><%=i.status%></td>
+</tr>
+<% }) %>
+</table>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket=io();
+socket.on("update",()=>location.reload());
+</script>
