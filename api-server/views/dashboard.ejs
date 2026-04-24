@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Dashboard</title>
+  <title>Dashboard Mess</title>
   <style>
     body{
       font-family: Arial, sans-serif;
@@ -9,62 +9,134 @@
       color:#fff;
       padding:20px;
     }
-    h1{margin-bottom:20px;}
+
+    h1{margin-bottom:10px;}
+
+    .top{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:20px;
+    }
+
+    select{
+      padding:8px;
+      border-radius:6px;
+      border:none;
+      background:#020617;
+      color:#fff;
+    }
+
+    .card{
+      background:#1e293b;
+      border-radius:12px;
+      padding:15px;
+      margin-bottom:20px;
+    }
+
     table{
       width:100%;
       border-collapse:collapse;
       background:#1e293b;
     }
+
     th, td{
       padding:10px;
       border-bottom:1px solid #334155;
       text-align:left;
     }
+
     th{
       background:#020617;
     }
+
     .aktif{color:#f87171;}
     .selesai{color:#4ade80;}
     .telat{color:#facc15;}
+
     .empty{
       text-align:center;
       padding:20px;
       color:#94a3b8;
+    }
+
+    .badge{
+      background:#334155;
+      padding:3px 10px;
+      border-radius:999px;
+      font-size:12px;
     }
   </style>
 </head>
 
 <body>
 
-<h1>📊 Dashboard Mess</h1>
+<div class="top">
+  <h1>📊 Dashboard Mess</h1>
 
-<table>
-<tr>
-  <th>Nama</th>
-  <th>Mess</th>
-  <th>Status</th>
-</tr>
+  <!-- FILTER MESS -->
+  <select onchange="location='/?mess='+this.value">
+    <option value="ALL" <%= selectedMess==='ALL'?'selected':'' %>>Semua Mess</option>
+    <% messList.forEach(m => { %>
+      <option value="<%= m %>" <%= selectedMess===m?'selected':'' %>><%= m %></option>
+    <% }) %>
+  </select>
+</div>
 
-<% if (!izin || izin.length === 0) { %>
-  <tr>
-    <td colspan="3" class="empty">Belum ada data</td>
-  </tr>
-<% } else { %>
+<!-- RINGKASAN -->
+<div class="card">
+  <h3>📌 Ringkasan Per Mess</h3>
 
-  <% izin.forEach(i => { %>
-    <tr>
-      <td><%= i.nama || '-' %></td>
-      <td><%= i.mess || '-' %></td>
-      <td class="<%= i.status %>">
-        <%= i.status || '-' %>
-      </td>
-    </tr>
+  <% Object.keys(grouped).forEach(m => { 
+    const list = grouped[m];
+    const aktif = list.filter(i => i.status === 'aktif').length;
+    const telat = list.filter(i => i.status === 'telat').length;
+    const selesai = list.filter(i => i.status === 'selesai').length;
+  %>
+
+    <p>
+      <span class="badge"><%= m %></span> 
+      | Aktif: <%= aktif %> 
+      | Telat: <%= telat %> 
+      | Selesai: <%= selesai %> 
+      | Total: <%= list.length %>
+    </p>
+
   <% }) %>
+</div>
 
-<% } %>
+<!-- TABEL -->
+<div class="card">
+  <h3>📋 Detail <%= selectedMess === 'ALL' ? 'Semua Mess' : selectedMess %></h3>
 
-</table>
+  <table>
+    <tr>
+      <th>Nama</th>
+      <th>Mess</th>
+      <th>Status</th>
+    </tr>
 
+    <% if (!izin || izin.length === 0) { %>
+      <tr>
+        <td colspan="3" class="empty">Belum ada data</td>
+      </tr>
+    <% } else { %>
+
+      <% izin.forEach(i => { %>
+        <tr>
+          <td><%= i.nama || '-' %></td>
+          <td><%= i.mess || '-' %></td>
+          <td class="<%= i.status %>">
+            <%= i.status || '-' %>
+          </td>
+        </tr>
+      <% }) %>
+
+    <% } %>
+  </table>
+</div>
+
+<!-- REALTIME -->
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
