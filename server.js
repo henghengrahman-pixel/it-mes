@@ -10,12 +10,19 @@ const server = http.createServer(app);
 const io = require("socket.io")(server);
 
 // ======================
-// PATH CONFIG
+// AUTO DETECT BASE PATH
 // ======================
 const BASE_DIR = __dirname;
-const DATA_DIR = process.env.DATA_DIR || path.join(BASE_DIR, "data");
 
-// pastikan folder data ada
+// cek apakah ada folder api-server
+const APP_DIR = fs.existsSync(path.join(BASE_DIR, "api-server"))
+  ? path.join(BASE_DIR, "api-server")
+  : BASE_DIR;
+
+// ======================
+// DATA DIR
+// ======================
+const DATA_DIR = process.env.DATA_DIR || path.join(APP_DIR, "data");
 fs.ensureDirSync(DATA_DIR);
 
 // ======================
@@ -24,30 +31,31 @@ fs.ensureDirSync(DATA_DIR);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(express.static(path.join(BASE_DIR, "public")));
+// STATIC (AUTO FIX)
+app.use(express.static(path.join(APP_DIR, "public")));
 
-// FIX VIEW PATH (WAJIB)
-app.set("views", path.join(BASE_DIR, "views"));
+// VIEWS (AUTO FIX)
+app.set("views", path.join(APP_DIR, "views"));
 app.set("view engine", "ejs");
 
 // ======================
 // SESSION (RAILWAY SAFE)
 // ======================
-app.set("trust proxy", 1); // penting di Railway
+app.set("trust proxy", 1);
 
 app.use(session({
   secret: process.env.SESSION_SECRET || "secret",
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Railway pakai proxy
+    secure: false,
     httpOnly: true,
     sameSite: "lax"
   }
 }));
 
 // ======================
-// DATABASE FILE
+// DATABASE
 // ======================
 const DB = {
   users: path.join(DATA_DIR, "users.json"),
@@ -81,13 +89,10 @@ function requireLogin(req, res, next) {
 // ======================
 // ROUTES
 // ======================
-
-// login page
 app.get("/login", (req, res) => {
   res.render("login", { error: null });
 });
 
-// login process
 app.post("/login", (req, res) => {
   const { id, password } = req.body;
 
@@ -99,11 +104,9 @@ app.post("/login", (req, res) => {
     return res.redirect("/");
   }
 
-  // kirim error ke view (biar tidak blank)
   res.render("login", { error: "ID atau Password salah" });
 });
 
-// dashboard
 app.get("/", requireLogin, (req, res) => {
   const users = read(DB.users);
   const izin = read(DB.izin);
@@ -114,8 +117,6 @@ app.get("/", requireLogin, (req, res) => {
 // ======================
 // API
 // ======================
-
-// izin keluar
 app.post("/api/izin", (req, res) => {
   if (req.headers["x-api-key"] !== process.env.API_KEY) {
     return res.sendStatus(403);
@@ -137,7 +138,6 @@ app.post("/api/izin", (req, res) => {
   res.json({ ok: true });
 });
 
-// kembali
 app.post("/api/kembali", (req, res) => {
   if (req.headers["x-api-key"] !== process.env.API_KEY) {
     return res.sendStatus(403);
@@ -174,7 +174,7 @@ io.on("connection", () => {
 });
 
 // ======================
-// ERROR HANDLER (ANTI CRASH)
+// ERROR HANDLER
 // ======================
 app.use((err, req, res, next) => {
   console.error("ERROR:", err);
