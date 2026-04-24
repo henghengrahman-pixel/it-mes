@@ -1,18 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      background:#0f172a;
+      color:#fff;
+      padding:20px;
+    }
+    h1{margin-bottom:20px;}
+    table{
+      width:100%;
+      border-collapse:collapse;
+      background:#1e293b;
+    }
+    th, td{
+      padding:10px;
+      border-bottom:1px solid #334155;
+      text-align:left;
+    }
+    th{
+      background:#020617;
+    }
+    .aktif{color:#f87171;}
+    .selesai{color:#4ade80;}
+    .telat{color:#facc15;}
+    .empty{
+      text-align:center;
+      padding:20px;
+      color:#94a3b8;
+    }
+  </style>
+</head>
 
-<h1>Dashboard</h1>
-<table border="1">
-<tr><th>Nama</th><th>Mess</th><th>Status</th></tr>
-<% izin.forEach(i=>{ %>
+<body>
+
+<h1>📊 Dashboard Mess</h1>
+
+<table>
 <tr>
-<td><%=i.nama%></td>
-<td><%=i.mess%></td>
-<td><%=i.status%></td>
+  <th>Nama</th>
+  <th>Mess</th>
+  <th>Status</th>
 </tr>
-<% }) %>
+
+<% if (!izin || izin.length === 0) { %>
+  <tr>
+    <td colspan="3" class="empty">Belum ada data</td>
+  </tr>
+<% } else { %>
+
+  <% izin.forEach(i => { %>
+    <tr>
+      <td><%= i.nama || '-' %></td>
+      <td><%= i.mess || '-' %></td>
+      <td class="<%= i.status %>">
+        <%= i.status || '-' %>
+      </td>
+    </tr>
+  <% }) %>
+
+<% } %>
+
 </table>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const socket=io();
-socket.on("update",()=>location.reload());
+const socket = io();
+
+socket.on("update", () => {
+  location.reload();
+});
 </script>
+
+</body>
+</html>
